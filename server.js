@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const pool = require('./db');
 const send_res = require('./send_res');
+const rechain_linkedid = require('./rechain_linkedid');
 const app= express();
 app.use(express.json()); 
 
@@ -50,15 +51,18 @@ app.post('/identify',async (req,res)=>{
                 console.log(phoneNumber_min_id);
 
                 if((phoneNumber_min_id!=null) && (email_min_id!=null)){
+                    //
                     let user;
                     let sup_user;
                     if((email_min_id < phoneNumber_min_id)){
                         user=await pool.query(`select user_id from users where id=$1 `,[phoneNumber_min_id]);
                         sup_user=await pool.query(`select user_id from users where id=$1 `,[email_min_id]);
+                        await pool.query(`UPDATE customers SET linkprecedence=$1 where id=$2`,['secondary',phoneNumber_min_id]);
                     }
                     else{
                         user=await pool.query(`select user_id from users where id=$1 `,[email_min_id]);
                         sup_user=await pool.query(`select user_id from users where id=$1 `,[phoneNumber_min_id]);
+                        await pool.query(`UPDATE customers SET linkprecedence=$1 where id=$2`,['secondary',email_min_id]);
                     }
                     console.log("got the user ",user);
                     const sup_user_id=(sup_user.rows)[0].user_id;
@@ -67,25 +71,25 @@ app.post('/identify',async (req,res)=>{
                     await pool.query(`UPDATE customers SET updatedat=now() WHERE customers.id in (select id from users where user_id=$1)`,[user_id]);
                     await pool.query(`UPDATE users SET user_id=$1 WHERE user_id=$2;`,[sup_user_id,user_id]);
 
-                    await pool.query(`INSERT INTO customers(email,phoneNumber) VALUES($1,$2)`,[email, phoneNumber]);
+                    await pool.query(`INSERT INTO customers(email,phoneNumber,linkprecedence) VALUES($1,$2,$3)`,[email, phoneNumber,'secondary']);
                     await pool.query(`INSERT INTO users(user_id) values($1);`,[sup_user_id]);
+
                 }
                 else{
                     if(phoneNumber_min_id==null){
                         let user=await pool.query(`select user_id from users where id=$1 `,[email_min_id]);
                         const user_id=(user.rows)[0].user_id;
-                        await pool.query(`INSERT INTO customers(email,phoneNumber) VALUES($1,$2)`,[email, phoneNumber]);
+                        await pool.query(`INSERT INTO customers(email,phoneNumber,linkprecedence) VALUES($1,$2,$3)`,[email, phoneNumber,'secondary']);
                         await pool.query(`INSERT INTO users(user_id) values($1);`,[user_id]);
                     }
                     else{
                         let user=await pool.query(`select user_id from users where id=$1 `,[phoneNumber_min_id]);
                         const user_id=(user.rows)[0].user_id;
-                        await pool.query(`INSERT INTO customers(email,phoneNumber) VALUES($1,$2)`,[email, phoneNumber]);
+                        await pool.query(`INSERT INTO customers(email,phoneNumber,linkprecedence) VALUES($1,$2.$3)`,[email, phoneNumber,'secondary']);
                         await pool.query(`INSERT INTO users(user_id) values($1);`,[user_id]);
                     }
                 }
             }
-
 
             const result3 = await pool.query(`SELECT * FROM customers WHERE email = $1 AND phoneNumber = $2;`,[email, phoneNumber]);
             console.log("2");
@@ -94,7 +98,9 @@ app.post('/identify',async (req,res)=>{
             const answer=await send_res(result3);
              console.log("3");
             console.log("ok",answer);
+            rechain_linkedid();
             res.status(200).json(answer);
+
         }
         else{
             //user with same email and phone number exist
