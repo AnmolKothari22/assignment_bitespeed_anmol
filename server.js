@@ -118,8 +118,8 @@ app.post('/identify',async (req,res)=>{
 });
 
 
-app.listen(process.env.APP_PORT,()=>{
-    console.log("server started at port",process.env.APP_PORT);
+app.listen(process.env.PORT,()=>{
+    console.log("server started at port",process.env.PORT);
 });
 
 
