@@ -2,12 +2,9 @@ const pool = require('./db');
 
 
 async function send_res(result){
-    console.log("----------0");
-    console.log(result.rows[0].id,typeof(result.rows[0].id));
+  
 const ro=await pool.query(`SELECT user_id from users where id=$1 `,[result.rows[0].id]);
-console.log("----------1");
-console.log(ro.rows);
-console.log("----------2");
+
 const userId=ro.rows[0].user_id;
 const ans=await pool.query(`SELECT * from customers where customers.id in (select id from users where user_id=$1);`,[userId]);
 const answer=ans.rows;
@@ -15,7 +12,7 @@ let email_array=[];
 let phoneNumber_array=[];
 let secondaryContactIds_array=[];
 let primaryContatctId=0;
-//console.log(answer);
+console.log(answer);
 for (let i = 0; i < answer.length; i++) {
     if(i!=0){
         secondaryContactIds_array.push(answer[i].id);
